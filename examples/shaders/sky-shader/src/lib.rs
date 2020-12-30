@@ -13,8 +13,9 @@ pub extern crate spirv_std_macros;
 
 use core::f32::consts::PI;
 use shared::*;
-use spirv_std::glam::{const_vec3, vec2, vec3, Vec2, Vec3, Vec4};
-use spirv_std::storage_class::{Input, Output, PushConstant};
+use spirv_std::glam::{const_vec3, vec2, vec3, Vec2, Vec3, Vec4, Vec4Swizzles};
+use spirv_std::storage_class::{Input, Output, PushConstant, UniformConstant};
+use spirv_std::{Dimensionality, Image, ImageDepth, ImageFormat, Sampled, Sampler};
 
 // Note: This cfg is incorrect on its surface, it really should be "are we compiling with std", but
 // we tie #[no_std] above to the same condition, so it's fine.
@@ -161,12 +162,27 @@ pub fn fs(constants: &ShaderConstants, frag_coord: Vec2) -> Vec4 {
 pub fn main_fs(
     #[spirv(frag_coord)] in_frag_coord: Input<Vec4>,
     constants: PushConstant<ShaderConstants>,
+    #[spirv(binding = 0)] img: UniformConstant<
+        Image<
+            { Dimensionality::TwoD },
+            { ImageDepth::No },
+            false,
+            false,
+            { Sampled::Yes },
+            { ImageFormat::Unknown },
+            { None },
+        >,
+    >,
+    #[spirv(binding = 1)] samp: UniformConstant<Sampler>,
     mut output: Output<Vec4>,
 ) {
-    let constants = constants.load();
+    let _constants = constants.load();
+    let img = img.load();
+    let samp = samp.load();
 
-    let frag_coord = vec2(in_frag_coord.load().x, in_frag_coord.load().y);
-    let color = fs(&constants, frag_coord);
+    let frag_coord = in_frag_coord.load();
+    // let color = fs(&constants, frag_coord);
+    let color = img.sample(samp, frag_coord);
     output.store(color);
 }
 
@@ -175,6 +191,7 @@ pub fn main_fs(
 pub fn main_vs(
     #[spirv(vertex_index)] vert_idx: Input<i32>,
     #[spirv(position)] mut builtin_pos: Output<Vec4>,
+    mut out_frag_coord: Output<Vec2>,
 ) {
     let vert_idx = vert_idx.load();
 
@@ -184,4 +201,5 @@ pub fn main_vs(
     let pos = 2.0 * uv - Vec2::one();
 
     builtin_pos.store(pos.extend(0.0).extend(1.0));
+    out_frag_coord.store(uv);
 }

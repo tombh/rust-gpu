@@ -38,17 +38,30 @@
     future_incompatible,
     nonstandard_style
 )]
+#![feature(const_generics)]
+#![allow(incomplete_features)]
 
 #[cfg(not(target_arch = "spirv"))]
 #[macro_use]
 pub extern crate spirv_std_macros;
 
+pub(crate) mod sealed;
 pub mod storage_class;
 mod textures;
 
 pub use glam;
 pub use num_traits;
 pub use textures::*;
+
+/// Marker trait for arguments that accept single scalar values or vectors
+/// of scalars.
+pub trait ScalarOrVector: sealed::Sealed {}
+
+impl ScalarOrVector for f32 {}
+impl ScalarOrVector for glam::Vec2 {}
+impl ScalarOrVector for glam::Vec3 {}
+impl ScalarOrVector for glam::Vec3A {}
+impl ScalarOrVector for glam::Vec4 {}
 
 #[cfg(all(not(test), target_arch = "spirv"))]
 #[panic_handler]
